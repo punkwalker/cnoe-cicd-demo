@@ -7,7 +7,7 @@ This repository contains building blocks to deploy IDP capabilities, golden path
 ## Getting Started
 
 ### Install idpbuilder
-To get started, you need to install [`idpbuilder`](https://github.com/cnoe-io/idpbuilder). See the [`instructions`] (https://github.com/cnoe-io/idpbuilder?tab=readme-ov-file#getting-started) in idpbuilder repo for details.
+To get started, you need to install [`idpbuilder`](https://github.com/cnoe-io/idpbuilder). See the [`instructions`](https://github.com/cnoe-io/idpbuilder?tab=readme-ov-file#getting-started) in idpbuilder repo for details.
 
 ### Run idpbuilder
 
