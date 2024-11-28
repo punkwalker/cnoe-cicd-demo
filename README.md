@@ -7,7 +7,7 @@ This repository contains building blocks to deploy IDP capabilities, golden path
 ## Getting Started
 Please work with your Account Manager to setup and deploy this workshop.
 
-Workshop Url: https://catalog.workshops.aws/kub308-cnoe-for-reinvent2024
+Workshop Url: https://catalog.workshops.aws/cnoe-oss
 
 ## Security
 
