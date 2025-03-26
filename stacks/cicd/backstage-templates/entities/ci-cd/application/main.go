@@ -1,9 +1,9 @@
 package main
 
 import (
-	"net/http"
 	"encoding/json"
 	"log"
+	"net/http"
 	"os"
 )
 
@@ -19,18 +19,17 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.Println("Error : %v", err)
+		log.Printf("Error : %v", err)
 		return
 	}
 
-	response := Response{Message: "pong from server : "+hostname}
+	response := Response{Message: "pong from server : " + hostname}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
-func main(){
+func main() {
 	http.HandleFunc("/ping", pingHandler)
 	log.Println("Server started on 8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
-

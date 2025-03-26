@@ -1,0 +1,16 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowEventBinding
+metadata:
+  name: "{{ .Values.serviceName }}-deploy-webhook"
+  namespace: {{ .Values.namespace }}
+spec:
+  event:
+    selector: "payload.image_version != ''"
+  submit:
+    workflowTemplateRef:
+      name: "{{ .Values.serviceName }}-deploy-template"
+    arguments:
+      parameters:
+      - name: image-tag
+        valueFrom:
+          event: "payload.image_version"

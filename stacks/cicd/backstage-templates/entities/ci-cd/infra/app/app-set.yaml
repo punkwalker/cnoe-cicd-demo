@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: ${{values.name}}
+  namespace: argocd
+spec:
+  generators:
+  - list:
+      elements:
+      - stage: dev
+      - stage: stage
+      - stage: prod
+  template:
+    metadata:
+      name: ${{values.name}}-{{stage}}
+      annotations:
+        kargo.akuity.io/authorized-stage: ${{values.name}}:{{stage}}
+    spec:
+      project: default
+      source:
+        repoURL: https://${{values.repoHost}}:8443/gitea/giteaadmin/${{values.name}}-deploy
+        path: app/chart
+        # chart: simple-go
+        targetRevision: HEAD
+        helm:
+          parameters:
+          # Kargo will update this value to move new images into each stage
+          - name: image.tag
+            value: placeholder
+          - name: namespace
+            value: ${{values.name}}-{{stage}}
+          - name: envName
+            value: {{stage}}
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: ${{values.name}}-{{stage}}
+      syncPolicy:
+        syncOptions:
+        - CreateNamespace=true
+        automated:
+          selfHeal: true
+          prune: true
+  ignoreApplicationDifferences:
+  - jqPathExpressions:
+    - .spec.source.helm.parameters

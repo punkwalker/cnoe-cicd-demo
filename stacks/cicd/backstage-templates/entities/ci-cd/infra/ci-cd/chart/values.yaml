@@ -1,0 +1,28 @@
+appName: ${{values.name}}
+
+serviceName:  ${{values.name}}
+
+namespace:  ${{values.name}}-ci-cd
+
+hostName: ${{values.repoHost}}
+
+giteaBaseUrl: https://${{values.repoHost}}:8443/gitea/giteaAdmin
+
+imageBase: ${{values.repoHost}}:8443/gitea/giteaadmin
+
+replicaCount: 1
+
+envName: dev
+
+image:
+  registry: ${{values.repoHost}}:8443/gitea/giteaadmin/${{values.name}}
+  tag: placeholder
+
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enable: true
+  host: ${{values.repoHost}}

@@ -68,88 +68,25 @@ spec:
           type: string
           default: Yes
           enum:
-            - Yes
-    - title: Artifact and Credentials Management
-      required:
-        - artifactStore
-      properties:
-        artifactStore:
-          title: Select Artifact Store
-          type: string
-          default: gitea
-          enum:
-            - gitea
-        artifactStoreCredentialsPath:
-          title: Artifact Store Credentials Path
-          type: string
-          default: /team1/artifact-store
-        sourceControlCredentialsPath:
-          title: Source Control Credentials Path
-          default: /team1/source-control
-          type: string
-        notificationChannelCredentialsPath:
-          title: Notification Channel Credentials Path
-          type: string
-          default: /team1/notification-channel
-
-    - title: Environment Configuration
-      properties:
-        envConfig:
-          title: Environments
-          type: array
-          minItems: 1
-          ui:options:
-            addable: true
-            orderable: true
-            removable: true
-          items:
-            title: ''
-            type: object
-            required:
-              - environment
-              - clusterName
-            properties:
-              environment:
-                title: Environment Name
-                type: string
-                default: dev
-                description: Allowed values ci, dev, qa, stage, production, prod, preprod
-                pattern: '^(|dev|test|ci|qa|stage|production|prod|preprod)[0-9]*$'
-              clusterName:
-                title: Cluster Name
-                type: string
-                default: workshop
-                enum:
-                  - 'workshop'      
+            - Yes  
         
   steps:
     - id: deploy-template
       name: Generating application deployment template
       action: fetch:template
       input:
-        url: ./deploy
+        url: ./infra
         targetPath: ./app-deploy
         values:
           name: ${{parameters.serviceName}}
           repoHost: ${{parameters.repoHost}}
-          envConfig: ${{parameters.envConfig}}
     
     - id: app-template
       name: Generating application code template
       action: fetch:template
       input:
-        url: ./go-api
+        url: ./application
         targetPath: ./app
-        values:
-          name: ${{parameters.serviceName}}
-          repoHost: ${{parameters.repoHost}}
-    
-    - id: provisioner-template
-      name: Generating application code template
-      action: fetch:template
-      input:
-        url: ./provisioner
-        targetPath: ./provisioner
         values:
           name: ${{parameters.serviceName}}
           repoHost: ${{parameters.repoHost}}
@@ -160,7 +97,7 @@ spec:
       input:
         description: This is an example app
         sourcePath: ./app-deploy
-        repoUrl: ${{parameters.repoHost}}:443/gitea?repo=${{parameters.serviceName}}-deploy
+        repoUrl: ${{parameters.repoHost}}:8443/gitea?repo=${{parameters.serviceName}}-deploy
         defaultBranch: main
     
     - id: publish-app-repo
@@ -169,7 +106,7 @@ spec:
       input:
         description: This is an example app
         sourcePath: ./app
-        repoUrl: ${{parameters.repoHost}}:443/gitea?repo=${{parameters.serviceName}}
+        repoUrl: ${{parameters.repoHost}}:8443/gitea?repo=${{parameters.serviceName}}
         defaultBranch: main
 
     - id: create-provisioner-workflow

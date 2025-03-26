@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: wait-and-invoke-provisioner
+  namespace: ${{values.name}}-ci-cd
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: bash
+          image: alpine/k8s:1.31.0
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - >-
+              set -x &&
+              apk add curl &&
+              while true; do
+                status=$(curl -s -k -w "%{http_code}" -o /dev/null -d '{ "commits": [ { "modified": ["provisioner.yaml"]}]}' -H "Content-Type: application/json" -X POST ${{values.name}}-provisioner-eventsource-svc:12000/)
+                if [ "$status" -eq '200' ]; then
+                  echo "Success - got HTTP 200"
+                  sleep 2
+                  count=$(kubectl get workflows -l entity-id=${{values.name}},workflows.argoproj.io/phase=Running --no-headers -n ${{values.name}}|wc -l)
+                  if [ "$count" -gt '0' ]; then
+                    break 
+                  fi
+                fi
+                echo "Got status $status, retrying in 10s..."
+                sleep 10
+              done

@@ -1,0 +1,108 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kargo-config-job
+  namespace: keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+data:
+  kargo-client-payload.json: |
+    {
+      "protocol": "openid-connect",
+      "clientId": "kargo",
+      "name": "Kargo Client",
+      "description": "Used for Kargo SSO",
+      "publicClient": false,
+      "authorizationServicesEnabled": false,
+      "serviceAccountsEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "frontchannelLogout": true,
+      "publicClient": true,
+      "attributes": {
+        "saml_idp_initiated_sso_url_name": "",
+        "oauth2.device.authorization.grant.enabled": false,
+        "oidc.ciba.grant.enabled": false
+      },
+      "alwaysDisplayInConsole": false,
+      "rootUrl": "",
+      "baseUrl": "",
+      "redirectUris": [
+        "https://kargo.cnoe.localtest.me:8443/login"
+      ],
+      "webOrigins": [
+        "https://kargo.cnoe.localtest.me:8443"
+      ]
+    }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kargo-config
+  namespace: keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  template:
+    metadata:
+      generateName: kargo-config
+    spec:
+      serviceAccountName: keycloak-config
+      restartPolicy: Never
+      volumes:
+        - name: keycloak-config
+          secret:
+            secretName: keycloak-config
+        - name: config-payloads
+          configMap:
+            name: kargo-config-job
+      containers:
+        - name: kargo-config
+          image: docker.io/library/ubuntu:22.04
+          volumeMounts:
+            - name: keycloak-config
+              readOnly: true
+              mountPath: "/var/secrets/"
+            - name: config-payloads
+              readOnly: true
+              mountPath: "/var/config/"
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              #! /bin/bash
+              set -ex -o pipefail
+              apt -qq update && apt -qq install curl jq gettext-base -y
+              
+              ADMIN_PASSWORD=$(cat /var/secrets/KEYCLOAK_ADMIN_PASSWORD)
+              KEYCLOAK_URL=http://keycloak.keycloak.svc.cluster.local:id/keycloak
+              KEYCLOAK_TOKEN=$(curl -sS  --fail-with-body -X POST -H "Content-Type: application/x-www-form-urlencoded" \
+                --data-urlencode "username=cnoe-admin" \
+                --data-urlencode "password=${ADMIN_PASSWORD}" \
+                --data-urlencode "grant_type=password" \
+                --data-urlencode "client_id=admin-cli" \
+                ${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token | jq -e -r '.access_token')
+              
+              set +e
+              
+              curl --fail-with-body -H "Authorization: bearer ${KEYCLOAK_TOKEN}"  "${KEYCLOAK_URL}/admin/realms/cnoe"  &> /dev/null
+              if [ $? -ne 0 ]; then
+                exit 1
+              fi
+              set -e
+              
+              echo "creating Kargo client"
+              curl -sS --fail-with-body -H "Content-Type: application/json" \
+                -H "Authorization: bearer ${KEYCLOAK_TOKEN}" \
+                -X POST --data @/var/config/kargo-client-payload.json \
+                  ${KEYCLOAK_URL}/admin/realms/cnoe/clients
+              
+              CLIENT_ID=$(curl -sS --fail-with-body -H "Content-Type: application/json" \
+                -H "Authorization: bearer ${KEYCLOAK_TOKEN}" \
+                -X GET ${KEYCLOAK_URL}/admin/realms/cnoe/clients | jq -e -r  '.[] | select(.clientId == "kargo") | .id')
+              
+              CLIENT_SCOPE_GROUPS_ID=$(curl -sS --fail-with-body -H "Content-Type: application/json" -H "Authorization: bearer ${KEYCLOAK_TOKEN}" -X GET  ${KEYCLOAK_URL}/admin/realms/cnoe/client-scopes | jq -e -r  '.[] | select(.name == "groups") | .id')
+              curl -sS -H "Content-Type: application/json" -H "Authorization: bearer ${KEYCLOAK_TOKEN}" -X PUT  ${KEYCLOAK_URL}/admin/realms/cnoe/clients/${CLIENT_ID}/default-client-scopes/${CLIENT_SCOPE_GROUPS_ID}
+
+

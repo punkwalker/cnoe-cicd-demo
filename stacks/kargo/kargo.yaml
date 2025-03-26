@@ -1,0 +1,50 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kargo
+  namespace: argocd
+  labels:
+    env: dev
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: kargo
+  sources:
+    - repoURL: ghcr.io/akuity/kargo-charts
+      chart: kargo
+      targetRevision: 1.2.0
+      helm:
+        releaseName: kargo
+        parameters:
+          - name: api.permissiveCORSPolicyEnabled
+            value: "true"
+          - name: api.adminAccount.enabled
+            value: "false"
+          - name: api.tls.enabled
+            value: "false"
+          - name: api.oidc.enabled
+            value: "true"
+          - name: api.oidc.issuerURL
+            value: https://cnoe.localtest.me:8443/keycloak/realms/cnoe
+          - name: api.oidc.clientID
+            value: kargo
+          - name: api.oidc.dex.enabled
+            value: "false"
+          - name: api.cabundle.secretName
+            value: idpbuilder-cacert
+          - name: api.tls.terminatedUpstream
+            value: "true"
+          - name: api.oidc.admins.claims.groups
+            value: admin
+    - repoURL: cnoe://kargo
+      targetRevision: HEAD
+      path: "manifests"
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    automated:
+      selfHeal: true
+      prune: true
