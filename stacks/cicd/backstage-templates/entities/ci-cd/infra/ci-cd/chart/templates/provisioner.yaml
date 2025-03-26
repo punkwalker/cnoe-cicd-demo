@@ -1,33 +1,93 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: ci-cd-provisioner
-  namespace: ${{values.name}}-ci-cd
+  name: ci-cd-webhook-provisioner
+  namespace: "{{ .Values.namespace }}"
 spec:
   template:
     spec:
       restartPolicy: OnFailure
+      serviceAccountName: admin
+      volumes:
+        - name: gitea-credential
+          secret:
+            secretName: gitea-credential
       containers:
         - name: bash
+          envFrom:
+            - secretRef:
+                name: gitea-credential
+          env:
+            - name: ARGO_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: argo-token
+                  key: token
+            - name: HOOKS_API_URL
+              value: "https://{{ .Values.hostName }}:8443/gitea/api/v1/repos/giteaAdmin/{{ .Values.appName }}/hooks"
+            - name: WEBHOOK_URL
+              value: "https://{{ .Values.hostName }}:8443/argo-workflows/api/v1/events/{{ .Values.namespace }}/"
           image: alpine/k8s:1.31.0
           command: ["/bin/sh"]
           args:
             - -c
             - >-
               set -x &&
-              apk add curl &&
-              while true; do
-                status=$(curl -s -k -w "%{http_code}" -o /dev/null -d '{ "commits": [ { "modified": ["provisioner.yaml"]}]}' -H "Content-Type: application/json" -X POST ${{values.name}}-provisioner-eventsource-svc:12000/)
-                if [ "$status" -eq '200' ]; then
-                  echo "Success - got HTTP 200"
-                  sleep 2
-                  count=$(kubectl get workflows -l entity-id=${{values.name}},workflows.argoproj.io/phase=Running --no-headers -n ${{values.name}}|wc -l)
-                  if [ "$count" -gt '0' ]; then
-                    break 
-                  fi
-                fi
-                echo "Got status $status, retrying in 10s..."
-                sleep 10
-              done
+              apk add curl yq jq &&
+              echo "Creating Configmap for docker config" &&
+              gitea_auth=$(echo -n $GITEA_USERNAME:$GITEA_PASSWORD | base64) &&
+              echo "apiVersion: v1
 
+              kind: ConfigMap
+
+              metadata:
+                name: docker-config
+                namespace: {{inputs.parameters.service-name}}
+              data:
+                config.json: |
+                  {
+                    \"auths\": {
+                      \"{{inputs.parameters.gitea-url}}\": {
+                        \"auth\": \"$gitea_auth\"
+                      }
+                    }
+                  }
+              " > docker_config.yaml &&
+              kubectl apply -f docker_config.yaml  &&
+              echo "Creating Gitea Webhook!!" 
+              curl -k -X 'POST' "${HOOKS_API_URL}" -H "accept: application/json" -H "Authorization: token ${GITEA_TOKEN}" -H "Content-Type: application/json" -d '{"branch_filter": "main","type": "gitea", "events":["push"], "authorization_header":"'${ARGO_TOKEN}'","config": {"url": "'${WEBHOOK_URL}'", "content_type": "json"}, "active": true}'
 ---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: gitea-credentials
+  namespace: ${{values.name}}
+spec:
+  secretStoreRef:
+    name: gitea
+    kind: ClusterSecretStore
+  refreshInterval: "0"
+  target:
+    name: gitea-credentials
+  data:
+    - secretKey: GITEA_USERNAME
+      remoteRef:
+        key: gitea-credential
+        property: username
+    - secretKey: GITEA_PASSWORD
+      remoteRef:
+        key: gitea-credential
+        property: password
+    - secretKey: GITEA_TOKEN
+      remoteRef:
+        key: gitea-credential
+        property: token
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argo-token
+  namespace: "{{ .Values.namespace }}"
+  annotations:
+    kubernetes.io/service-account.name: admin
+type: kubernetes.io/service-account-token

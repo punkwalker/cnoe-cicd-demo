@@ -142,7 +142,12 @@ spec:
         envFrom:
           - secretRef:
               name: gitea-credentials
-# TODO: Add secretRef for argo-workflows token. 
+        env:
+          - name: ARGO_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: argo-token
+                key: token
         volumeMounts:
             - mountPath: /workdir
               name: workdir
