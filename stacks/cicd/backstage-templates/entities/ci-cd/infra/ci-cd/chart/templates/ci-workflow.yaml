@@ -157,13 +157,12 @@ spec:
         args:
           - -c
           - >-
-            #!/bin/sh
-            set -eu;
-            [ -z "${ARGO_TOKEN:-}" ] && echo "Error: ARGO_TOKEN not set" && exit 1;
-            apk add --no-cache curl jq;
-            cd_workflow_url="https://{{`{{inputs.parameters.workflow-event-url}}`}}";
-            image_tag="{{`{{inputs.parameters.image-tag}}`}}";
-            app_name="{{`{{inputs.parameters.app-name}}`}}";
+            set -eu &&
+            [ -z "${ARGO_TOKEN:-}" ] && echo "Error: ARGO_TOKEN not set" && exit 1 &&
+            apk add --no-cache curl jq &&
+            cd_workflow_url="https://{{`{{inputs.parameters.workflow-event-url}}`}}" &&
+            image_tag="{{`{{inputs.parameters.image-tag}}`}}" &&
+            app_name="{{`{{inputs.parameters.app-name}}`}}" &&
             for i in $(seq 1 3); do
               if curl -k -sf \
                 -X POST \
@@ -171,11 +170,11 @@ spec:
                 -H "Authorization: Bearer ${ARGO_TOKEN}" \
                 -d "{\"image_tag\":\"${image_tag}\", \"app_name\":\"${app_name}\"}" \
                 "${cd_workflow_url}"; then
-                echo "CD workflow invoked successfully";
-                exit 0;
-              fi;
-              [ $i -eq 3 ] && echo "All retries failed" && exit 1;
-              echo "Attempt $i failed. Retrying..." && sleep 5;
+                echo "CD workflow invoked successfully"
+                exit 0
+              fi
+              [ $i -eq 3 ] && echo "All retries failed" && exit 1
+              echo "Attempt $i failed. Retrying..." && sleep 5
             done
 ---
 apiVersion: argoproj.io/v1alpha1
