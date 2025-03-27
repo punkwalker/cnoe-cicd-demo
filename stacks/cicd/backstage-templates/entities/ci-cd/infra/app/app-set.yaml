@@ -3,6 +3,8 @@ kind: ApplicationSet
 metadata:
   name: ${{values.name}}
   namespace: argocd
+  labels:
+    entity-id: ${{values.name}}
 spec:
   generators:
   - list:
@@ -24,13 +26,11 @@ spec:
         targetRevision: HEAD
         helm:
           parameters:
-          # Kargo will update this value to move new images into each stage
+          # TODO: Kargo will update this value to move new images into each stage
           - name: image.tag
-            value: placeholder
-          - name: namespace
-            value: ${{values.name}}-{{stage}}
+            value: 0.0.1
           - name: envName
-            value: {{stage}}
+            value: "{{stage}}"
       destination:
         server: https://kubernetes.default.svc
         namespace: ${{values.name}}-{{stage}}

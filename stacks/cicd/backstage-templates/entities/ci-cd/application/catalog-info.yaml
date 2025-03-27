@@ -13,10 +13,10 @@ metadata:
     argo-workflows.cnoe.io/label-selector: 'entity-id=${{values.name}}'
     backstage.io/techdocs-ref: dir:.
   links:
-    - url: https://${{values.repoHost}}:443/gitea/giteaAdmin/${{values.name}}
+    - url: https://${{values.repoHost}}:8443/gitea/giteaAdmin/${{values.name}}
       title: App Repo URL
       icon: github
-    - url: https://${{values.repoHost}}:443/gitea/giteaAdmin/${{values.name}}-deploy
+    - url: https://${{values.repoHost}}:8443/gitea/giteaAdmin/${{values.name}}-deploy
       title: Deploy Repo URL
       icon: github
 spec:
@@ -32,10 +32,10 @@ metadata:
   name: ${{values.name | dump}}
   description: An example system for demonstration purposes
   links:
-    - url: https://${{values.repoHost}}:443/gitea/giteaAdmin/${{values.name}}
+    - url: https://${{values.repoHost}}:8443/gitea/giteaAdmin/${{values.name}}
       title: App Repo URL
       icon: github
-    - url: https://${{values.repoHost}}:443/gitea/giteaAdmin/${{values.name}}-deploy
+    - url: https://${{values.repoHost}}:8443/gitea/giteaAdmin/${{values.name}}-deploy
       title: Deploy Repo URL
       icon: github
 spec:

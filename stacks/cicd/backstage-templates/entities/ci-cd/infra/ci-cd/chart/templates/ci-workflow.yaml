@@ -9,15 +9,15 @@ spec:
   arguments:
     parameters:
       - name: apprepo
-        value: "https://{{ .Values.giteaBaseUrl }}/{{ .Values.serviceName}}"
+        value: "{{ .Values.giteaBaseUrl }}/{{ .Values.serviceName }}"
       - name: branch
         value: main
       # - name: deployrepo
-      #   value: "{{ .Values.giteaBaseUrl }}/{{ .Values.serviceName}}-deploy"
+      #   value: "{{ .Values.giteaBaseUrl }}/{{ .Values.serviceName }}-deploy"
       - name: image
-        value: "{{ .Values.image.registry }}
+        value: "{{ .Values.image.registry }}"
       - name: tag-version
-        value: 0.0.1
+        value: "0.0.1"
       - name: workflow-event-url
         value: "{{ .Values.hostName }}:8443/argo-workflows/api/v1/events/{{ .Values.namespace }}/"
   volumeClaimTemplates:
@@ -50,18 +50,19 @@ spec:
                 - name: tag-version
                   value: "{{`{{workflow.parameters.tag-version}}`}}"
             depends: "clone"
-# TODO: Add dynamic tag calculation
+          # TODO: Add dynamic tag calculation
           - name: invoke-cd-workflow
             template: invoke-cd-workflow
             arguments:
               parameters:
                 - name: workflow-event-url
-                  value: "{{`{{workflow.parameters.hostname}}`}}"
+                  value: "{{`{{workflow.parameters.workflow-event-url}}`}}"
                 - name: image-tag
                   value: "{{`{{workflow.parameters.tag-version}}`}}"
                 - name: app-name
                   value: "{{ .Values.serviceName }}"
             depends: "build-and-push-image"
+
     - name: clonerepo
       inputs:
         parameters:
@@ -125,11 +126,11 @@ spec:
           - name: DOCKER_CONFIG
             value: /kaniko/.docker
         args:
-        - --dockerfile=Dockerfile
-        - --context=.
-        - --destination={{`{{inputs.parameters.image}}`}}:{{`{{inputs.parameters.tag-version}}`}}
-        - --skip-tls-verify
-        - --cache=false
+          - --dockerfile=Dockerfile
+          - --context=.
+          - --destination={{`{{inputs.parameters.image}}`}}:{{`{{inputs.parameters.tag-version}}`}}
+          - --skip-tls-verify
+          - --cache=false
     
     - name: invoke-cd-workflow
       inputs:
@@ -149,19 +150,33 @@ spec:
                 name: argo-token
                 key: token
         volumeMounts:
-            - mountPath: /workdir
-              name: workdir
+          - mountPath: /workdir
+            name: workdir
         workingDir: "/workdir"
         command: ["/bin/sh"]
         args:
           - -c
           - >-
-            set -x &&
-            apk add curl jq &&
-            cd_workflow_url=https://{{`{{inputs.parameters.workflow-event-url}}`}} &&
-            image_tag={{`{{inputs.parameters.image-tag}}`}} &&
-            app_name={{`{{inputs.parameters.app-name}}`}} &&
-            curl -k -s -d '{"image_tag":"'${image_tag}'", "app_name":"'${app_name}'"}' -H "Content-Type: application/json" -H "Authorization: '${ARGO_TOKEN}'' -X POST ${cd_workflow_url}
+            #!/bin/sh
+            set -eu;
+            [ -z "${ARGO_TOKEN:-}" ] && echo "Error: ARGO_TOKEN not set" && exit 1;
+            apk add --no-cache curl jq;
+            cd_workflow_url="https://{{`{{inputs.parameters.workflow-event-url}}`}}";
+            image_tag="{{`{{inputs.parameters.image-tag}}`}}";
+            app_name="{{`{{inputs.parameters.app-name}}`}}";
+            for i in $(seq 1 3); do
+              if curl -k -sf \
+                -X POST \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer ${ARGO_TOKEN}" \
+                -d "{\"image_tag\":\"${image_tag}\", \"app_name\":\"${app_name}\"}" \
+                "${cd_workflow_url}"; then
+                echo "CD workflow invoked successfully";
+                exit 0;
+              fi;
+              [ $i -eq 3 ] && echo "All retries failed" && exit 1;
+              echo "Attempt $i failed. Retrying..." && sleep 5;
+            done
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowEventBinding
@@ -170,7 +185,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   event:
-    selector: "payload.message!= '' && metadata['x-gitea-event'] == ['push']"
+    selector: metadata['x-gitea-event'] == ['push']
   submit:
     workflowTemplateRef:
       name: "{{ .Values.serviceName }}-ci-template"

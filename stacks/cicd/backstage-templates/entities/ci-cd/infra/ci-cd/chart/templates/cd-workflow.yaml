@@ -55,26 +55,6 @@ spec:
                 - name: tag-version
                   value: "{{`{{inputs.parameters.image-tag}}`}}"
             depends: "clone-deploy-repo"
-          # - name: sync-argocd-app
-          #   template: sync-argocd-app
-          #   when: "'{{`{{tasks.update-image-version.outputs.parameters.argocd_flag}}`}}' == 'execute_cd'"
-          #   arguments:
-          #     parameters:
-          #       - name: appname
-          #         value: "{{`{{inputs.parameters.envname}}`}}-{{ .Values.serviceName }}"
-          #       - name: envname
-          #         value: "{{`{{inputs.parameters.envname}}`}}"
-          #   depends: "update-image-version"
-          # - name: wait-for-app-sync
-          #   template: wait-for-sync
-          #   when: "'{{`{{tasks.update-image-version.outputs.parameters.argocd_flag}}`}}' == 'execute_cd'"
-          #   arguments:
-          #     parameters:
-          #       - name: appname
-          #         value: "{{`{{inputs.parameters.envname}}`}}-{{ .Values.serviceName }}"
-          #       - name: envname
-          #         value: "{{`{{inputs.parameters.envname}}`}}"
-          #   depends: "sync-argocd-app"
     - name: clonerepo
       inputs:
         parameters:
@@ -136,73 +116,6 @@ spec:
               echo "No updates to values file, skipping git push"
               echo -n "skip_cd" > /workdir/cd_argo_flag.txt
             fi
-    #   outputs:
-    #     parameters:
-    #     - name: argocd_flag
-    #       valueFrom:
-    #         path: /workdir/cd_argo_flag.txt
-    # - name: sync-argocd-app
-    #   inputs:
-    #     parameters:
-    #       - name: appname
-    #       - name: envname
-    #   container:
-    #     volumeMounts:
-    #       - mountPath: /workdir
-    #         name: workdir
-    #     workingDir: /workdir/{{`{{inputs.parameters.envname}}`}}
-    #     image: argoproj/argocd:v2.6.15
-    #     command: ["/bin/sh"]
-    #     args:
-    #       - -c
-    #       - >-  
-    #         argocd login argocd-server.argocd --plaintext --username $ARGOCD_USERNAME --password $ARGOCD_PASSWORD &&
-    #         argocd app sync "{{`{{inputs.parameters.appname}}`}}" --force --prune
-    #     env:
-    #       - name: ARGOCD_USERNAME
-    #         value: admin
-    #       - name: ARGOCD_PASSWORD
-    #         valueFrom:
-    #           secretKeyRef:
-    #             name: argocd-credentials
-    #             key: ARGOCD_ADMIN_PASSWORD
-    # - name: wait-for-sync
-    #   inputs:
-    #     parameters:
-    #       - name: appname
-    #       - name: envname
-    #   container:
-    #     volumeMounts:
-    #       - mountPath: /workdir
-    #         name: workdir
-    #     workingDir: /workdir/{{`{{inputs.parameters.envname}}`}}
-    #     image: argoproj/argocd:v2.6.15
-    #     command: ["/bin/bash"]
-    #     args:
-    #       - -c
-    #       - >-  
-    #         argocd login argocd-server.argocd --plaintext --username $ARGOCD_USERNAME --password $ARGOCD_PASSWORD &&
-    #         health_status=$(argocd app get "{{`{{inputs.parameters.appname}}`}}" --refresh | grep "Health Status:" | awk '{print $3}') &&
-    #         for i in {1..10};
-    #         do
-    #           if [ "${health_status}" = "Healthy" ]; then
-    #             echo "App is Healthy"
-    #             exit 0
-    #           fi
-    #           echo "App Health: $health_status"
-    #           health_status=$(argocd app get "{{`{{inputs.parameters.appname}}`}}" --refresh | grep "Health Status:" | awk '{print $3}')
-    #           sleep 10
-    #         done &&
-    #         echo "App Health: $health_status" &&
-    #         exit 1
-    #     env:
-    #       - name: ARGOCD_USERNAME
-    #         value: admin
-    #       - name: ARGOCD_PASSWORD
-    #         valueFrom:
-    #           secretKeyRef:
-    #             name: argocd-credentials
-    #             key: ARGOCD_ADMIN_PASSWORD
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowEventBinding
@@ -211,7 +124,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   event:
-    selector: "payload.message != '' && payload.message.app-name == {{ .Values.serviceName }}"
+    selector: "payload.app-name != '' && payload.app-name == ['{{ .Values.serviceName }}']"
   submit:
     workflowTemplateRef:
       name: "{{ .Values.serviceName }}-deploy-template"

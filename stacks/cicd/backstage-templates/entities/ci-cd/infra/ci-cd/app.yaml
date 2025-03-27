@@ -1,21 +1,23 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: "{{ $env }}-{{ $.Values.serviceName }}"
-  namespace: {{ $.Values.namespace }}
+  name: ${{values.name}}-ci-cd
+  namespace: argocd
   labels:
-    entity-id: {{ $.Values.serviceName }}
+    entity-id: ${{values.name}}
 spec:
-  project: {{ $.Values.project }}
+  project: default
   source:
-    path: {{ $config.path }}
-    repoURL: "{{ $config.repo }}"
+    path: ci-cd/chart
+    repoURL: https://${{values.repoHost}}:8443/gitea/giteaadmin/${{values.name}}-deploy
+    targetRevision: HEAD
   destination:
-    name: {{ $.Values.k8sServer }}
-    namespace: {{ $config.namespace }}
+    server: https://kubernetes.default.svc
+    namespace: ${{values.name}}-ci-cd
   syncPolicy:
     automated:
       selfHeal: true
+      prune: true
     syncOptions:
       - CreateNamespace=true
 ---

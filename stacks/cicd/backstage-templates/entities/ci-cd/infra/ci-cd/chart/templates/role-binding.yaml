@@ -3,6 +3,8 @@ kind: RoleBinding
 metadata:
   name: admin-binding
   namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: '-10'
 subjects:
 - kind: ServiceAccount
   name: admin

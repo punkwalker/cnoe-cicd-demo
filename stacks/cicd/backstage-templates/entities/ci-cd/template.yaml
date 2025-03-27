@@ -1,9 +1,9 @@
 apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
-  description: Creates CI and CD Workflows and Deploy Apps to Remote EKS
-  name: eks-ci-cd
-  title: Deploy an Application with CICD to EKS
+  description: Creates An App with CI and CD Workflows
+  name: app-with-ci-cd
+  title: Deploy an Application with CICD configured
   tags:
     - go
 spec:
@@ -20,27 +20,27 @@ spec:
           default: riv2024demo
           pattern: ^[a-z\d]{1,64}$
           description: Provide service name
-        costCenter:
-          type: string
-          title: Cost Center
-          default: C0001
-          description: Provide CostCenter ID for finance management
-        language:
-          title: Language
-          type: string
-          default: go
-          enum:
-            - go
-        readOnlyGroup:
-          type: string
-          title: Access Group Name (ReadOnly)
-          default: cnoe-ro-ad@cnoe.io
-          description: AD Group Name to provide read only access
-        readWriteGroup:
-          type: string
-          title: Access Group Name (ReadWrite)
-          default: cnoe-rw-ad@cnoe.io
-          description: AD Group Name to provide read & write only access
+        # costCenter:
+        #   type: string
+        #   title: Cost Center
+        #   default: C0001
+        #   description: Provide CostCenter ID for finance management
+        # language:
+        #   title: Language
+        #   type: string
+        #   default: go
+        #   enum:
+        #     - go
+        # readOnlyGroup:
+        #   type: string
+        #   title: Access Group Name (ReadOnly)
+        #   default: cnoe-ro-ad@cnoe.io
+        #   description: AD Group Name to provide read only access
+        # readWriteGroup:
+        #   type: string
+        #   title: Access Group Name (ReadWrite)
+        #   default: cnoe-rw-ad@cnoe.io
+        #   description: AD Group Name to provide read & write only access
 
     - title: Source Control Configuration
       required:
@@ -109,16 +109,21 @@ spec:
         repoUrl: ${{parameters.repoHost}}:8443/gitea?repo=${{parameters.serviceName}}
         defaultBranch: main
 
-    - id: create-provisioner-workflow
-      name: Create Provisioner Workflow
+    - id: create-applicationset-for-app
+      name: Create ArgoCD ApplicationSet for Application
       action: cnoe:kubernetes:apply
       input:
         namespaced: true
-        manifestPath: ./provisioner/workflow.yaml
+        manifestPath: ./app-deploy/app/app-set.yaml
         clusterName: local
-        values:
-          name: ${{parameters.serviceName}}
-          repoHost: ${{parameters.repoHost}}
+
+    - id: create-application-for-app-infra
+      name: Create ArgoCD Application for Application CI CD
+      action: cnoe:kubernetes:apply
+      input:
+        namespaced: true
+        manifestPath: ./app-deploy/ci-cd/app.yaml
+        clusterName: local
 
     - id: register
       name: Register
