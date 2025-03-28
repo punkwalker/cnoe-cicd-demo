@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: ci-cd-webhook-provisioner
+  name: "{{ .Values.appName }}-webhook-provisioner"
   namespace: "{{ .Values.namespace }}"
   annotations:
     argocd.argoproj.io/sync-wave: '-10'
@@ -28,37 +28,35 @@ spec:
           image: alpine/k8s:1.31.0
           command: ["/bin/sh"]
           args:
-            - -c
+            - c
             - >-
-              set -eu &&
+              set -x;
               for var in GITEA_USERNAME GITEA_PASSWORD HOOKS_API_URL GITEA_TOKEN ARGO_TOKEN WEBHOOK_URL; do
-                [ -z "$(eval echo \$$var)" ] && echo "Error: $var not set" && exit 1
-              done &&
-              apk add --no-cache curl yq jq &&
-              gitea_auth=$(echo -n "${GITEA_USERNAME}:${GITEA_PASSWORD}" | base64) &&
-              cat > docker_config.yaml << EOF
-              apiVersion: v1
+                  [ -z "$(eval echo \$$var)" ] && echo "Error: $var not set" && exit 1;
+              done;
+              apk add --no-cache curl yq jq;
+              gitea_auth=$(echo -n "${GITEA_USERNAME}:${GITEA_PASSWORD}" | base64);
+              echo "apiVersion: v1
               kind: ConfigMap
               metadata:
                 name: docker-config
-                namespace: {{ .Values.namespace }}
+                namespace: $NAMESPACE
               data:
                 config.json: |
-                  {"auths":{"{{ .Values.giteaBaseUrl }}":{"auth":"${gitea_auth}"}}}
-              EOF &&
-              kubectl apply -f docker_config.yaml || exit 1 &&
+                  {\"auths\":{\"$GITEA_BASE_URL\":{\"auth\":\"${gitea_auth}\"}}}" > docker_config.yaml &&
+              kubectl apply -f docker_config.yaml || exit 1;
               for i in $(seq 1 3); do
                 if curl -k -X POST "${HOOKS_API_URL}" \
-                  -H "accept: application/json" \
-                  -H "Authorization: token ${GITEA_TOKEN}" \
-                  -H "Content-Type: application/json" \
-                  -d "{\"branch_filter\":\"main\",\"type\":\"gitea\",\"events\":[\"push\"],\"authorization_header\":\"Bearer ${ARGO_TOKEN}\",\"config\":{\"url\":\"${WEBHOOK_URL}\",\"content_type\":\"json\"},\"active\":true}" \
-                  -fsS; then
-                  echo "Webhook created successfully"
-                  exit 0
-                fi
-                [ $i -eq 3 ] && echo "All retries failed" && exit 1
-                echo "Attempt $i failed. Retrying..." && sleep 5
+                    -H "accept: application/json" \
+                    -H "Authorization: token ${GITEA_TOKEN}" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"branch_filter\":\"main\",\"type\":\"gitea\",\"events\":[\"push\"],\"authorization_header\":\"Bearer ${ARGO_TOKEN}\",\"config\":{\"url\":\"${WEBHOOK_URL}\",\"content_type\":\"json\"},\"active\":true}" \
+                    -fsS; then
+                    echo "Webhook created successfully"
+                    exit 0
+                fi;
+                [ $i -eq 3 ] && echo "All retries failed" && exit 1;
+                echo "Attempt $i failed. Retrying..." && sleep 5;
               done
 ---
 apiVersion: external-secrets.io/v1beta1
