@@ -5,6 +5,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   serviceAccountName: admin
+  entrypoint: deploy-workflow
   arguments:
     parameters:
       - name: deployrepo
@@ -43,7 +44,7 @@ spec:
             arguments:
               parameters:
                 - name: deployrepo
-                  value: "https://{{`{{inputs.parameters.deployrepo}}`}}"
+                  value: "{{`{{inputs.parameters.deployrepo}}`}}"
                 - name: branch
                   value: "main"
           - name: update-image-version
@@ -60,7 +61,6 @@ spec:
         parameters:
           - name: deployrepo
           - name: branch
-          - name: envname
       container:
         volumeMounts:
           - mountPath: /workdir
@@ -96,25 +96,24 @@ spec:
         args:
           - -c
           - >-  
-            set -x &&
-            git clone https://{{`{{inputs.parameters.deployrepo}}`}}.git -c http.sslVerify=false &&
-            repo={{`{{inputs.parameters.deployrepo}}`}} &&
-            repo_name=`echo -n $repo | awk -F/ '{print $NF}'` &&
-            image_version={{`{{inputs.parameters.tag-version}}`}} &&
-            sed -i "s/  tag: .*/  tag: $image_version/g" values.yaml &&
-            cat values.yaml &&
-            git status &&
-            m_count=$(git status -s | wc -l) &&
+            set -x;
+            repo={{`{{inputs.parameters.deployrepo}}`}};
+            repo_name=`echo -n $repo | awk -F/ '{print $NF}'`;
+            repo_base=`echo -n $repo | cut -d'/' -f3-`;
+            image_version={{`{{inputs.parameters.tag-version}}`}};
+            sed -i "s/  tag: .*/  tag: $image_version/g" app/chart/values.yaml;
+            cat app/chart/values.yaml;
+            git status;
+            m_count=$(git status -s | wc -l);
             if [ $m_count == 1 ]; then
-              git config --global user.email "noreply@aws.com" 
-              git config --global user.name ARGO
-              git remote set-url origin https://$GITEA_USERNAME:$GITEA_TOKEN@{{`{{inputs.parameters.deployrepo}}`}}.git
-              git add values.yaml
-              git commit -m "Updated image version to $image_version"
-              git push --set-upstream origin main
+              git config --global user.email "noreply@aws.com";
+              git config --global user.name ARGO;
+              git remote set-url origin https://$GITEA_USERNAME:$GITEA_TOKEN@$repo_base.git;
+              git add app/chart/values.yaml;
+              git commit -m "Updated image version to $image_version";
+              git push --set-upstream origin main;
             else
-              echo "No updates to values file, skipping git push"
-              echo -n "skip_cd" > /workdir/cd_argo_flag.txt
+              echo "No updates to values file, skipping git push";
             fi
 ---
 apiVersion: argoproj.io/v1alpha1
@@ -124,7 +123,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   event:
-    selector: 'payload.app-name != "" and payload.app-name == ["{{ .Values.serviceName }}"]'
+    selector: '"app_name" in payload and payload.app_name != "" and payload.app_name == "{{ .Values.serviceName }}"'
   submit:
     workflowTemplateRef:
       name: "{{ .Values.serviceName }}-deploy-template"

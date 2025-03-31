@@ -3,6 +3,8 @@ kind: WorkflowTemplate
 metadata:
   name: "{{ .Values.serviceName }}-ci-template"
   namespace: {{ .Values.namespace }}
+  labels:
+    entity-id: "{{ .Values.serviceName }}"
 spec:
   serviceAccountName: admin
   entrypoint: ci-build
@@ -40,17 +42,28 @@ spec:
                   value: "{{`{{workflow.parameters.apprepo}}`}}"
                 - name: branch
                   value: "{{`{{workflow.parameters.branch}}`}}"
-          
-          - name: build-and-push-image
+          - name: build-and-test
+            template: go-build
+            depends: "clone"
+          - name: generate-new-tag-version
+            template: create-new-tag
+            depends: "build-and-test"
+          - name: docker-build-and-push-image
             template: build-image-kaniko
             arguments:
               parameters:
                 - name: image
                   value: "{{`{{workflow.parameters.image}}`}}"
                 - name: tag-version
-                  value: "{{`{{workflow.parameters.tag-version}}`}}"
-            depends: "clone"
-          # TODO: Add dynamic tag calculation
+                  value: "{{`{{tasks.generate-new-tag-version.outputs.parameters.tag-version}}`}}"
+            depends: "generate-new-tag-version"
+          - name: push-new-tag-version
+            template: push-tag
+            arguments:
+              parameters:
+                - name: apprepo
+                  value: "{{`{{workflow.parameters.apprepo}}`}}"
+            depends: "docker-build-and-push-image"
           - name: invoke-cd-workflow
             template: invoke-cd-workflow
             arguments:
@@ -58,10 +71,10 @@ spec:
                 - name: workflow-event-url
                   value: "{{`{{workflow.parameters.workflow-event-url}}`}}"
                 - name: image-tag
-                  value: "{{`{{workflow.parameters.tag-version}}`}}"
+                  value: "{{`{{tasks.generate-new-tag-version.outputs.parameters.tag-version}}`}}"
                 - name: app-name
                   value: "{{ .Values.serviceName }}"
-            depends: "build-and-push-image"
+            depends: "docker-build-and-push-image"
 
     - name: clonerepo
       inputs:
@@ -100,6 +113,33 @@ spec:
           - -v
           - -o
           - myapp
+
+    - name: create-new-tag
+      container:
+        image: alpine:3.20
+        volumeMounts:
+          - mountPath: /workdir
+            name: workdir
+        workingDir: /workdir
+        command: ["/bin/sh"]
+        args:
+          - -c
+          - >-
+            set -x;
+            CURRENT_VERSION=$(cat version.txt);
+            MAJOR=$(echo $CURRENT_VERSION | cut -d. -f1);
+            MINOR=$(echo $CURRENT_VERSION | cut -d. -f2);
+            PATCH=$(echo $CURRENT_VERSION | cut -d. -f3);
+            NEW_PATCH=$((PATCH + 1));
+            NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}";
+            echo "Current version: $CURRENT_VERSION";
+            echo "New version: $NEW_VERSION";
+            echo -n "$NEW_VERSION" > version.txt
+      outputs:
+        parameters:
+          - name: tag-version
+            valueFrom:
+              path: /workdir/version.txt
     
     - name: build-image-kaniko
       inputs:
@@ -131,7 +171,42 @@ spec:
           - --destination={{`{{inputs.parameters.image}}`}}:{{`{{inputs.parameters.tag-version}}`}}
           - --skip-tls-verify
           - --cache=false
-    
+
+    - name: push-tag
+      inputs:
+        parameters:
+          - name: apprepo
+      container:
+        volumeMounts:
+          - mountPath: /workdir
+            name: workdir
+        image: alpine/git:v2.45.1
+        envFrom:
+          - secretRef:
+              name: gitea-credentials
+        workingDir: /workdir
+        command: ["/bin/sh"]
+        args:
+          - -c
+          - >-  
+            set -x;
+            repo={{`{{inputs.parameters.apprepo}}`}};
+            repo_name=`echo -n $repo | awk -F/ '{print $NF}'`;
+            repo_base=`echo -n $repo | cut -d'/' -f3-`;
+            cat version.txt;
+            git status;
+            m_count=$(git status -s | grep version | wc -l);
+            if [ $m_count == 1 ]; then
+              git config --global user.email "noreply@aws.com";
+              git config --global user.name ARGO;
+              git remote set-url origin https://$GITEA_USERNAME:$GITEA_TOKEN@$repo_base.git;
+              git add version.txt;
+              git commit -m "Bump App Version from CI Workflow";
+              git push --set-upstream origin main;
+            else
+              echo "No updates to version file, skipping git push";
+            fi
+
     - name: invoke-cd-workflow
       inputs:
         parameters:
@@ -170,8 +245,8 @@ spec:
                     -H "Authorization: Bearer ${ARGO_TOKEN}" \
                     -d "{\"image_tag\":\"${image_tag}\", \"app_name\":\"${app_name}\"}" \
                     "${cd_workflow_url}"; then
-                    echo "CD workflow invoked successfully"
-                    exit 0
+                    echo "CD workflow invoked successfully";
+                    exit 0;
                 fi;
                 [ $i -eq 3 ] && echo "All retries failed" && exit 1;
                 echo "Attempt $i failed. Retrying..." && sleep 5;
@@ -184,7 +259,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   event:
-    selector: metadata["x-gitea-event"] == ["push"]
+    selector: metadata["x-gitea-event"] == ["push"] and none(payload.commits, .author.name == "ARGO")
   submit:
     workflowTemplateRef:
       name: "{{ .Values.serviceName }}-ci-template"
