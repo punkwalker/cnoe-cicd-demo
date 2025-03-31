@@ -124,7 +124,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   event:
-    selector: "payload.app-name != '' && payload.app-name == ['{{ .Values.serviceName }}']"
+    selector: 'payload.app-name != "" and payload.app-name == ["{{ .Values.serviceName }}"]'
   submit:
     workflowTemplateRef:
       name: "{{ .Values.serviceName }}-deploy-template"

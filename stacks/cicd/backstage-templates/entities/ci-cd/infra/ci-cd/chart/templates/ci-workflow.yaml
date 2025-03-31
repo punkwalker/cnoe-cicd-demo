@@ -184,7 +184,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   event:
-    selector: metadata['x-gitea-event'] == ['push']
+    selector: metadata["x-gitea-event"] == ["push"]
   submit:
     workflowTemplateRef:
       name: "{{ .Values.serviceName }}-ci-template"
