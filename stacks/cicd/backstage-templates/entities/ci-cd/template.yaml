@@ -20,27 +20,27 @@ spec:
           default: riv2024demo
           pattern: ^[a-z\d]{1,64}$
           description: Provide service name
-        # costCenter:
-        #   type: string
-        #   title: Cost Center
-        #   default: C0001
-        #   description: Provide CostCenter ID for finance management
-        # language:
-        #   title: Language
-        #   type: string
-        #   default: go
-        #   enum:
-        #     - go
-        # readOnlyGroup:
-        #   type: string
-        #   title: Access Group Name (ReadOnly)
-        #   default: cnoe-ro-ad@cnoe.io
-        #   description: AD Group Name to provide read only access
-        # readWriteGroup:
-        #   type: string
-        #   title: Access Group Name (ReadWrite)
-        #   default: cnoe-rw-ad@cnoe.io
-        #   description: AD Group Name to provide read & write only access
+        costCenter:
+          type: string
+          title: Cost Center
+          default: C0001
+          description: Provide CostCenter ID for finance management
+        language:
+          title: Language
+          type: string
+          default: go
+          enum:
+            - go
+        readOnlyGroup:
+          type: string
+          title: Access Group Name (ReadOnly)
+          default: cnoe-ro-ad@cnoe.io
+          description: AD Group Name to provide read only access
+        readWriteGroup:
+          type: string
+          title: Access Group Name (ReadWrite)
+          default: cnoe-rw-ad@cnoe.io
+          description: AD Group Name to provide read & write only access
 
     - title: Source Control Configuration
       required:
@@ -49,9 +49,9 @@ spec:
         repoHost:
           title: Repository Host
           type: string
-          default: cnoe.localtest.me
+          default: advaitt.people.aws.dev
           enum:
-            - cnoe.localtest.me
+            - advaitt.people.aws.dev
         owner:
           type: string
           title: Owner

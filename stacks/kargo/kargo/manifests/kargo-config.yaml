@@ -30,10 +30,10 @@ data:
       "rootUrl": "",
       "baseUrl": "",
       "redirectUris": [
-        "https://kargo.cnoe.localtest.me:8443/login"
+        "https://kargo.advaitt.people.aws.dev:8443/login"
       ],
       "webOrigins": [
-        "https://kargo.cnoe.localtest.me:8443"
+        "https://kargo.advaitt.people.aws.dev:8443"
       ]
     }
 ---
@@ -76,7 +76,7 @@ spec:
               apt -qq update && apt -qq install curl jq gettext-base -y
               
               ADMIN_PASSWORD=$(cat /var/secrets/KEYCLOAK_ADMIN_PASSWORD)
-              KEYCLOAK_URL=http://keycloak.keycloak.svc.cluster.local:id/keycloak
+              KEYCLOAK_URL=http://keycloak.keycloak.svc.cluster.local:8080/keycloak
               KEYCLOAK_TOKEN=$(curl -sS  --fail-with-body -X POST -H "Content-Type: application/x-www-form-urlencoded" \
                 --data-urlencode "username=cnoe-admin" \
                 --data-urlencode "password=${ADMIN_PASSWORD}" \

@@ -1,0 +1,123 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-extension-patches
+  namespace: argo-rollout
+data:
+  extension-patch.yaml: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: argocd-server
+    spec:
+      template:
+        spec:
+          initContainers:
+            - name: rollout-extension
+              image: quay.io/argoprojlabs/argocd-extension-installer:v0.0.1
+              env:
+              - name: EXTENSION_URL
+                value: https://github.com/argoproj-labs/rollout-extension/releases/download/v0.3.4/extension.tar
+              volumeMounts:
+                - name: extensions
+                  mountPath: /tmp/extensions/
+              securityContext:
+                runAsUser: 1000
+                allowPrivilegeEscalation: false
+          containers:
+            - name: argocd-server
+              volumeMounts:
+                - name: extensions
+                  mountPath: /tmp/extensions/
+          volumes:
+            - name: extensions
+              emptyDir: {}
+  kustomization.yaml: |
+    apiVersion: kustomize.config.k8s.io/v1beta1
+    kind: Kustomization
+
+    resources:
+    - resource1.yaml
+
+    patches:
+    - path: extension-patch.yaml
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: argocd-extension-config
+  namespace: argo-rollout
+spec:
+  template:
+    metadata:
+      generateName: argocd-extension-config
+    spec:
+      restartPolicy: Never
+      volumes:
+        - name: argocd-extension-patches
+          configMap:
+            name: argocd-extension-patches
+      containers:
+        - name: argocd-extension-config
+          image: docker.io/library/ubuntu:22.04
+          volumeMounts:
+            - name: argocd-extension-patches
+              readOnly: true
+              mountPath: "/argocd-extension-patches"
+          envFrom:
+            - secretRef:
+                name: gitea-credentials
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              #! /bin/bash
+
+              set -ex -o pipefail
+              apt -qq update && apt -qq install curl jq git -y
+
+              # Clone Argocd Gitea repo
+              mkdir -p argocd && cd argocd
+              GITEA_PASSWORD=$(echo -n $GITEA_PASSWORD | jq -sRr @uri)
+              git clone -c http.sslVerify=false https://"${GITEA_USERNAME}":"${GITEA_PASSWORD}"@advaitt.people.aws.dev:8443/gitea/giteaAdmin/idpbuilder-localdev-argocd.git .
+
+              # Copy kustomization patches
+              cp -RL /argocd-extension-patches/* .
+              
+              # Install kubectl
+              curl -sS -LO "https://dl.k8s.io/release/v1.28.3//bin/linux/amd64/kubectl"
+              chmod +x kubectl
+              
+              # Run Kustomize
+              tempfile=$(mktemp)
+              ./kubectl kustomize . > "${tempfile}"
+              mv "${tempfile}" resource1.yaml
+
+              # Commit and Push changes
+              # git remote set-url origin https://"${GITEA_USERNAME}":"${GITEA_PASSWORD}"@advaitt.people.aws.dev:8443/gitea/giteaAdmin/idpbuilder-localdev-argocd.git
+              git add resource1.yaml
+              git config --global user.email "noreply@aws.com"
+              git config --global user.name "PatchJob"
+              git commit -m "Add argo rollout extension"
+              git push --set-upstream origin main
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: gitea-credentials
+  namespace: argo-rollout
+spec:
+  secretStoreRef:
+    name: gitea
+    kind: ClusterSecretStore
+  refreshInterval: "0"
+  target:
+    name: gitea-credentials
+  data:
+    - secretKey: GITEA_USERNAME
+      remoteRef:
+        key: gitea-credential
+        property: username
+    - secretKey: GITEA_PASSWORD
+      remoteRef:
+        key: gitea-credential
+        property: token

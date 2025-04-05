@@ -3,13 +3,14 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: ${{values.name | dump}}
-  description: This is CICD Application Deployment on Remote EKS Cluster
+  description: This is CICD Application Deployment
   annotations:
     backstage.io/kubernetes-label-selector: 'entity-id=${{values.name}}'
     argocd/app-selector: 'entity-id=${{values.name}}'
-    backstage.io/kubernetes-cluster: workshop
+    backstage.io/kubernetes-cluster: local
     argo-workflows.cnoe.io/cluster-name: local
-    argo-workflows.cnoe.io/namespace: ${{values.name}}
+    argo-workflows.cnoe.io/namespace: ${{values.name}}-ci-cd
+    kargo.cnoe.io/project: https://kargo.advaitt.people.aws.dev:8443/project/${{values.name}}
     argo-workflows.cnoe.io/label-selector: 'entity-id=${{values.name}}'
     backstage.io/techdocs-ref: dir:.
   links:

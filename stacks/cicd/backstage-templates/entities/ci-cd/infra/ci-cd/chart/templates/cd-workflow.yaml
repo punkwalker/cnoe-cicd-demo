@@ -4,6 +4,9 @@ metadata:
   name: "{{ .Values.serviceName }}-deploy-template"
   namespace: {{ .Values.namespace }}
 spec:
+  workflowMetadata:
+    labels:
+      entity-id: "{{ .Values.serviceName }}"
   serviceAccountName: admin
   entrypoint: deploy-workflow
   arguments:

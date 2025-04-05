@@ -1,0 +1,47 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+    name: kargo-controller-read-secrets
+    namespace: kargo
+subjects:
+    - kind: ServiceAccount
+      name: kargo-controller
+      namespace: kargo
+roleRef:
+    kind: ClusterRole
+    name: kargo-controller-read-secrets
+    apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: gitea-credentials
+  namespace: kargo
+  annotations:
+    argocd.argoproj.io/sync-wave: '-10'
+spec:
+  secretStoreRef:
+    name: gitea
+    kind: ClusterSecretStore
+  refreshInterval: "0"
+  target:
+    name: gitea-credentials
+    template:
+      metadata:
+        labels:
+          kargo.akuity.io/cred-type: helm
+      data:
+        repoURL: "https://advaitt.people.aws.dev:8443/gitea/giteaadmin"
+        repoURLIsRegex: "true"
+        username: "{{ .data.username }}"
+        password: "{{ .data.password }}"
+
+  data:
+    - secretKey: username
+      remoteRef:
+        key: gitea-credential
+        property: username
+    - secretKey: password
+      remoteRef:
+        key: gitea-credential
+        property: password

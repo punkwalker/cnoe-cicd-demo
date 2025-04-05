@@ -6,6 +6,9 @@ metadata:
   labels:
     entity-id: "{{ .Values.serviceName }}"
 spec:
+  workflowMetadata:
+    labels:
+      entity-id: "{{ .Values.serviceName }}"
   serviceAccountName: admin
   entrypoint: ci-build
   arguments:

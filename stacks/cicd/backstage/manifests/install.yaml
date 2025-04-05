@@ -71,7 +71,7 @@ data:
   app-config.yaml: |
     app:
       title: CNOE Backstage
-      baseUrl: https://cnoe.localtest.me:8443
+      baseUrl: https://advaitt.people.aws.dev:8443
     organization:
       name: CNOE
     backend:
@@ -81,7 +81,7 @@ data:
       # auth:
       #   keys:
       #     - secret: ${BACKEND_SECRET}
-      baseUrl: https://cnoe.localtest.me:8443
+      baseUrl: https://advaitt.people.aws.dev:8443
       listen:
         port: 7007
         # Uncomment the following host directive to bind to specific interfaces
@@ -91,7 +91,7 @@ data:
         # Content-Security-Policy directives follow the Helmet format: https://helmetjs.github.io/#reference
         # Default Helmet Content-Security-Policy values can be removed by setting the key to false
       cors:
-        origin: https://cnoe.localtest.me:8443
+        origin: https://advaitt.people.aws.dev:8443
         methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
         credentials: true
       database:
@@ -107,12 +107,12 @@ data:
 
     integrations:
       gitea:
-        - baseUrl: https://cnoe.localtest.me:8443/gitea
-          host: cnoe.localtest.me:8443
+        - baseUrl: https://advaitt.people.aws.dev:8443/gitea
+          host: advaitt.people.aws.dev:8443
           username: ${GITEA_USERNAME}
           password: ${GITEA_PASSWORD}
-        - baseUrl: https://cnoe.localtest.me/gitea
-          host: cnoe.localtest.me
+        - baseUrl: https://advaitt.people.aws.dev/gitea
+          host: advaitt.people.aws.dev
           username: ${GITEA_USERNAME}
           password: ${GITEA_PASSWORD}
     #  github:
@@ -132,7 +132,7 @@ data:
       ### Example for how to add a proxy endpoint for the frontend.
       ### A typical reason to do this is to handle HTTPS and CORS for internal services.
       endpoints:
-        '/provisioner': https://cnoe.localtest.me/
+        '/provisioner': https://advaitt.people.aws.dev/
 
     # Reference documentation http://backstage.io/docs/features/techdocs/configuration
     # Note: After experimenting with basic setup, use CI/CD to generate docs
@@ -172,7 +172,7 @@ data:
       locations:
         # Examples from a public GitHub repository.
         - type: url
-          target: https://cnoe.localtest.me:8443/gitea/giteaAdmin/idpbuilder-localdev-backstage-templates-entities/raw/branch/main/catalog-info.yaml
+          target: https://advaitt.people.aws.dev:8443/gitea/giteaAdmin/idpbuilder-localdev-backstage-templates-entities/raw/branch/main/catalog-info.yaml
           rules:
             - allow: [Component, System, API, Resource, Location, Template, User, Group]
     kubernetes:
@@ -187,11 +187,13 @@ data:
         - type: 'config'
           instances:
             - name: in-cluster
-              url: https://cnoe.localtest.me:8443/argocd
+              url: https://advaitt.people.aws.dev:8443/argocd
               username: admin
               password: ${ARGOCD_ADMIN_PASSWORD}
     argoWorkflows:
         baseUrl: ${ARGO_WORKFLOWS_URL}
+    # iframe:
+    #   allowList: ["kargo.advaitt.people.aws.dev"]
 ---
 apiVersion: v1
 kind: Secret
@@ -199,13 +201,19 @@ metadata:
   name: k8s-config
   namespace: backstage
 stringData:
-  k8s-config.yaml: "type: 'config'\nclusters:\n  - url: https://kubernetes.default.svc.cluster.local\n
-    \   name: local\n    authProvider: 'serviceAccount'\n    skipTLSVerify: true\n
-    \   skipMetricsLookup: true\n    serviceAccountToken: \n      $file: /var/run/secrets/kubernetes.io/serviceaccount/token\n
-    \   caData: \n      $file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt\n
-    \ - url: K8S_SERVER\n
-    \   name: workshop\n    authProvider: 'serviceAccount'\n    skipTLSVerify: true\n
-    \   skipMetricsLookup: true\n    serviceAccountToken: SA_TOKEN\n"
+  k8s-config.yaml: |
+    type: 'config'
+    clusters:
+      - url: https://kubernetes.default.svc.cluster.local
+        name: local
+        authProvider: 'serviceAccount'
+        skipTLSVerify: true
+        skipMetricsLookup: true
+        serviceAccountToken:
+          $file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        caData:
+          $file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+
 ---
 apiVersion: v1
 kind: Service
@@ -272,7 +280,8 @@ spec:
                 name: gitea-credentials
             - secretRef:
                 name: argocd-credentials
-          image: ghcr.io/cnoe-io/backstage-app:135c0cb26f3e004a27a11edb6a4779035aff9805
+          # image: ghcr.io/cnoe-io/backstage-app:135c0cb26f3e004a27a11edb6a4779035aff9805
+          image: punkwalker/backstage-app:0.0.17
           name: backstage
           ports:
             - containerPort: 7007
@@ -390,14 +399,14 @@ spec:
     template:
       engineVersion: v2
       data:
-        BACKSTAGE_FRONTEND_URL: https://cnoe.localtest.me:8443/backstage
+        BACKSTAGE_FRONTEND_URL: https://advaitt.people.aws.dev:8443/
         POSTGRES_HOST: postgresql.backstage.svc.cluster.local
         POSTGRES_PORT: '5432'
         POSTGRES_DB: backstage
         POSTGRES_USER: backstage
         POSTGRES_PASSWORD: "{{.POSTGRES_PASSWORD}}"
-        ARGO_WORKFLOWS_URL: https://cnoe.localtest.me:8443/argo-workflows
-        KEYCLOAK_NAME_METADATA: https://cnoe.localtest.me:8443/keycloak/realms/cnoe/.well-known/openid-configuration
+        ARGO_WORKFLOWS_URL: https://advaitt.people.aws.dev:8443/argo-workflows
+        KEYCLOAK_NAME_METADATA: https://advaitt.people.aws.dev:8443/keycloak/realms/cnoe/.well-known/openid-configuration
         KEYCLOAK_CLIENT_SECRET: "{{.BACKSTAGE_CLIENT_SECRET}}"
         ARGOCD_AUTH_TOKEN: "argocd.token={{.ARGOCD_SESSION_TOKEN}}"
         ARGO_CD_URL: 'https://argocd-server.argocd.svc.cluster.local/api/v1/'
@@ -447,6 +456,9 @@ kind: Ingress
 metadata:
   name: backstage
   namespace: backstage
+  annotations:
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "Content-Security-Policy: frame-src https://*.people.aws.dev:8443/;";
 spec:
   ingressClassName: "nginx"
   rules:
@@ -460,7 +472,7 @@ spec:
                 name: backstage
                 port:
                   name: http
-    - host: cnoe.localtest.me
+    - host: advaitt.people.aws.dev
       http:
         paths:
           - path: /

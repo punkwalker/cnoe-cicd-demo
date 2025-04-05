@@ -1,0 +1,139 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Project
+metadata:
+  name: "{{ .Values.serviceName }}"
+  namespace: "{{ .Values.serviceName }}-ci-cd"
+spec:
+  promotionPolicies:
+  - stage: dev
+    autoPromotionEnabled: true
+  - stage: stage
+    autoPromotionEnabled: true
+  - stage: prod
+    autoPromotionEnabled: false
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: kargo-demo
+  namespace: "{{ .Values.serviceName }}"
+spec:
+  subscriptions:
+  - image:
+      repoURL: advaitt.people.aws.dev:8443/gitea/giteaadmin/{{ .Values.serviceName }} # Watch for new versions of this image
+      # semverConstraint: ^0.0.0 # Only watch for versions that match this constraint
+---
+{{- $stageVar := print "${{ '${{' }} ctx.stage ${{ '}}' }}" -}}
+{{- $gitRepoVar := print "${{ '${{' }} vars.gitRepo ${{ '}}' }}" -}}
+{{- $imageRepoVar := print "${{ '${{' }} imageFrom(vars.imageRepo).Tag ${{ '}}' }}" -}}
+apiVersion: kargo.akuity.io/v1alpha1
+kind: PromotionTask
+metadata:
+  name: promo-process
+  namespace: "{{ .Values.serviceName }}"
+spec:
+  vars:
+  - name: gitRepo
+    value: https://advaitt.people.aws.dev:8443/gitea/giteaadmin/{{ .Values.serviceName }}-deploy
+  - name: imageRepo
+    value: advaitt.people.aws.dev:8443/gitea/giteaadmin/{{ .Values.serviceName }}
+  steps:
+  - uses: argocd-update
+    config:
+      apps:
+
+      - name: "{{ .Values.serviceName }}-{{ $stageVar }}"
+        sources:
+        - repoURL: {{ $gitRepoVar }}
+          helm:
+            images:
+            - key: image.tag
+              value: {{ $imageRepoVar }}
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: dev
+  namespace: "{{ .Values.serviceName }}"
+spec:
+  requestedFreight:
+  - origin:
+      kind: Warehouse
+      name: kargo-demo
+    sources:
+      direct: true
+  promotionTemplate:
+    spec:
+      steps:
+      - task:
+          name: promo-process
+  verification:
+    analysisTemplates:
+    - name: kargo-demo
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: stage
+  namespace: "{{ .Values.serviceName }}"
+spec:
+  requestedFreight:
+  - origin:
+      kind: Warehouse
+      name: kargo-demo
+    sources:
+      stages:
+      - dev
+  promotionTemplate:
+    spec:
+      steps:
+      - task:
+          name: promo-process
+  verification:
+    analysisTemplates:
+    - name: kargo-demo
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod
+  namespace: "{{ .Values.serviceName }}"
+spec:
+  requestedFreight:
+  - origin:
+      kind: Warehouse
+      name: kargo-demo
+    sources:
+      stages:
+      - stage
+  promotionTemplate:
+    spec:
+      steps:
+      - task:
+          name: promo-process
+  verification:
+    analysisTemplates:
+    - name: kargo-demo
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: kargo-demo
+  namespace: "{{ .Values.serviceName }}"
+spec:
+  metrics:
+  - name: test
+    provider:
+      job:
+        metadata:
+        spec:
+          backoffLimit: 1
+          template:
+            spec:
+              containers:
+              - name: test
+                image: alpine:latest
+                command:
+                - sleep
+                - "20"
+              restartPolicy: Never

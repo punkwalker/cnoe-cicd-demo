@@ -3,8 +3,6 @@ kind: ApplicationSet
 metadata:
   name: ${{values.name}}
   namespace: argocd
-  labels:
-    entity-id: ${{values.name}}
 spec:
   generators:
   - list:
@@ -17,12 +15,13 @@ spec:
       name: ${{values.name}}-{{stage}}
       annotations:
         kargo.akuity.io/authorized-stage: ${{values.name}}:{{stage}}
+      labels:
+        entity-id: ${{values.name}}
     spec:
       project: default
       source:
         repoURL: https://${{values.repoHost}}:8443/gitea/giteaadmin/${{values.name}}-deploy
         path: app/chart
-        # chart: simple-go
         targetRevision: HEAD
         helm:
           parameters:

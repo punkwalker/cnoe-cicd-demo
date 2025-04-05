@@ -10,7 +10,7 @@ metadata:
     backstage.io/kubernetes-cluster: workshop
     argocd/app-name: ${{values.name | dump}}
   links:
-    - url: https://cnoe.localtest.me:8443/gitea
+    - url: https://advaitt.people.aws.dev:8443/gitea
       title: Repo URL
       icon: github
 spec:
@@ -25,7 +25,7 @@ metadata:
   name: ${{values.name | dump}}
   description: An example system for demonstration purposes
   links:
-    - url: https://cnoe.localtest.me:8443/gitea/giteaAdmin/${{values.name}}
+    - url: https://advaitt.people.aws.dev:8443/gitea/giteaAdmin/${{values.name}}
       title: CNOE Repo 
       icon: github
 spec:

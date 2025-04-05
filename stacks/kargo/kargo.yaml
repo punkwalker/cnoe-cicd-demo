@@ -28,17 +28,23 @@ spec:
           - name: api.oidc.enabled
             value: "true"
           - name: api.oidc.issuerURL
-            value: https://cnoe.localtest.me:8443/keycloak/realms/cnoe
+            value: https://advaitt.people.aws.dev:8443/keycloak/realms/cnoe
           - name: api.oidc.clientID
             value: kargo
           - name: api.oidc.dex.enabled
             value: "false"
           - name: api.cabundle.secretName
             value: idpbuilder-cacert
+          - name: controller.cabundle.secretName
+            value: idpbuilder-cacert
           - name: api.tls.terminatedUpstream
             value: "true"
           - name: api.oidc.admins.claims.groups
             value: admin
+          - name: controller.globalCredentials.namespaces[0]
+            value: "kargo"
+          - name: controller.rollouts.integrationEnabled
+            value: "true"
     - repoURL: cnoe://kargo
       targetRevision: HEAD
       path: "manifests"
