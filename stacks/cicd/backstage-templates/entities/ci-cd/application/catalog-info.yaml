@@ -48,7 +48,7 @@ apiVersion: backstage.io/v1alpha1
 kind: API
 metadata:
   name: ${{values.name | dump}}
-  description: reInvent API 
+  description: Simple Go API 
 spec:
   type: openapi
   lifecycle: experimental

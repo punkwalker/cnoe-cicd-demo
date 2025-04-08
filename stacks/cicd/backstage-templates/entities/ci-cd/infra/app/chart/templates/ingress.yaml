@@ -17,7 +17,7 @@ spec:
         paths:
           - backend:
               service:
-                name: {{ .Values.appName }}
+                name: {{ .Values.appName }}-stable
                 port:
                   number: {{ .Values.service.port }}
             path: /{{ .Values.appName }}/{{ .Values.envName }}(/|$)(.*)

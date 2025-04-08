@@ -1,0 +1,26 @@
+{{- $valueVar := print "${{ '{{' }} args.value ${{ '}}' }}" -}}
+{{- $baseURLVar := print "${{ '{{' }} args.baseURL ${{ '}}' }}" -}}
+{{- $subPathVar := print "${{ '{{' }} args.subPath ${{ '}}' }}" -}}
+{{- $fieldVar := print "${{ '{{' }} args.field ${{ '}}' }}" -}}
+apiVersion: argoproj.io/v1alpha1
+kind: ClusterAnalysisTemplate 
+metadata:
+  name: "{{ .Values.serviceName }}"
+spec:
+  args:
+  - name: baseURL
+  - name: subPath
+  - name: field
+  - name: value
+  metrics:
+  - name: webmetric
+    successCondition: result == "{{ $valueVar }}"
+    consecutiveSuccessLimit: 3
+    interval: 10s
+    failureLimit: 2
+    count: 5
+    provider:
+      web:
+        url: "{{ $baseURLVar }}{{ $subPathVar }}/healthz"
+        insecure: true
+        jsonPath: "{$.{{ $fieldVar }}}"

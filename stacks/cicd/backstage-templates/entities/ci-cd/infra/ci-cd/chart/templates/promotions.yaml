@@ -2,7 +2,7 @@ apiVersion: kargo.akuity.io/v1alpha1
 kind: Project
 metadata:
   name: "{{ .Values.serviceName }}"
-  namespace: "{{ .Values.serviceName }}-ci-cd"
+  namespace: "{{ .Values.namespace }}"
 spec:
   promotionPolicies:
   - stage: dev
@@ -15,7 +15,7 @@ spec:
 apiVersion: kargo.akuity.io/v1alpha1
 kind: Warehouse
 metadata:
-  name: kargo-demo
+  name: "{{ .Values.serviceName }}"
   namespace: "{{ .Values.serviceName }}"
 spec:
   subscriptions:
@@ -25,7 +25,7 @@ spec:
 ---
 {{- $stageVar := print "${{ '${{' }} ctx.stage ${{ '}}' }}" -}}
 {{- $gitRepoVar := print "${{ '${{' }} vars.gitRepo ${{ '}}' }}" -}}
-{{- $imageRepoVar := print "${{ '${{' }} imageFrom(vars.imageRepo).Tag ${{ '}}' }}" -}}
+{{- $imageTagVar := print "${{ '${{' }} imageFrom(vars.imageRepo).Tag ${{ '}}' }}" -}}
 apiVersion: kargo.akuity.io/v1alpha1
 kind: PromotionTask
 metadata:
@@ -41,14 +41,13 @@ spec:
   - uses: argocd-update
     config:
       apps:
-
       - name: "{{ .Values.serviceName }}-{{ $stageVar }}"
         sources:
         - repoURL: {{ $gitRepoVar }}
           helm:
             images:
             - key: image.tag
-              value: {{ $imageRepoVar }}
+              value: {{ $imageTagVar }}
 ---
 apiVersion: kargo.akuity.io/v1alpha1
 kind: Stage
@@ -59,7 +58,7 @@ spec:
   requestedFreight:
   - origin:
       kind: Warehouse
-      name: kargo-demo
+      name: "{{ .Values.serviceName }}"
     sources:
       direct: true
   promotionTemplate:
@@ -69,7 +68,17 @@ spec:
           name: promo-process
   verification:
     analysisTemplates:
-    - name: kargo-demo
+    - name: "{{ .Values.serviceName }}"
+      kind: ClusterAnalysisTemplate
+    args:
+    - name: baseURL
+      value: "https://{{ .Values.hostName }}:8443"
+    - name: subPath
+      value: "/{{ .Values.serviceName }}/dev"
+    - name: field
+      value: env
+    - name: value
+      value: dev
 ---
 apiVersion: kargo.akuity.io/v1alpha1
 kind: Stage
@@ -80,7 +89,7 @@ spec:
   requestedFreight:
   - origin:
       kind: Warehouse
-      name: kargo-demo
+      name: "{{ .Values.serviceName }}"
     sources:
       stages:
       - dev
@@ -91,7 +100,17 @@ spec:
           name: promo-process
   verification:
     analysisTemplates:
-    - name: kargo-demo
+    - name: "{{ .Values.serviceName }}"
+      kind: ClusterAnalysisTemplate
+    args:
+    - name: baseURL
+      value: "https://{{ .Values.hostName }}:8443"
+    - name: subPath
+      value: "/{{ .Values.serviceName }}/stage"
+    - name: field
+      value: env
+    - name: value
+      value: stage
 ---
 apiVersion: kargo.akuity.io/v1alpha1
 kind: Stage
@@ -102,7 +121,7 @@ spec:
   requestedFreight:
   - origin:
       kind: Warehouse
-      name: kargo-demo
+      name: "{{ .Values.serviceName }}"
     sources:
       stages:
       - stage
@@ -113,27 +132,14 @@ spec:
           name: promo-process
   verification:
     analysisTemplates:
-    - name: kargo-demo
----
-apiVersion: argoproj.io/v1alpha1
-kind: AnalysisTemplate
-metadata:
-  name: kargo-demo
-  namespace: "{{ .Values.serviceName }}"
-spec:
-  metrics:
-  - name: test
-    provider:
-      job:
-        metadata:
-        spec:
-          backoffLimit: 1
-          template:
-            spec:
-              containers:
-              - name: test
-                image: alpine:latest
-                command:
-                - sleep
-                - "20"
-              restartPolicy: Never
+    - name: "{{ .Values.serviceName }}"
+      kind: ClusterAnalysisTemplate
+    args:
+    - name: baseURL
+      value: "https://{{ .Values.hostName }}:8443"
+    - name: subPath
+      value: "/{{ .Values.serviceName }}/stage"
+    - name: field
+      value: env
+    - name: value
+      value: prod

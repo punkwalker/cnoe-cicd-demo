@@ -10,7 +10,7 @@ giteaBaseUrl: https://${{values.repoHost}}:8443/gitea/giteaAdmin
 
 imageBase: ${{values.repoHost}}:8443/gitea/giteaadmin
 
-replicaCount: 1
+replicaCount: 4
 
 envName: dev
 

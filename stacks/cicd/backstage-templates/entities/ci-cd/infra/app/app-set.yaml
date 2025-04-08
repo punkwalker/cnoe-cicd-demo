@@ -27,7 +27,7 @@ spec:
           parameters:
           # TODO: Kargo will update this value to move new images into each stage
           - name: image.tag
-            value: 0.0.1
+            value: placeholder
           - name: envName
             value: "{{stage}}"
       destination:
