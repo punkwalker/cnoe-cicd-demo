@@ -10,6 +10,7 @@ import (
 
 type Response struct {
 	Message string `json:"message"`
+	Env     string `json:"env"`
 }
 
 type HealthResponse struct {
@@ -34,6 +35,7 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 
 	response := Response{
 		Message: "pong from server : " + hostname,
+		Env:     os.Getenv("APP_ENV"),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

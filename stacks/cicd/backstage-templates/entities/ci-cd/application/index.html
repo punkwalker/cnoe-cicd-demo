@@ -74,7 +74,10 @@
     </div>
     <script>
       function pingServer() {
-          fetch("/ping")
+        const baseURL = window.location.pathname.endsWith('/')
+                ? window.location.pathname
+                : window.location.pathname + '/';
+          fetch(baseURL + "ping")
               .then(res => res.json())
               .then(data => {
                   document.getElementById("response").textContent = data.message + " in " + data.env + "environment";

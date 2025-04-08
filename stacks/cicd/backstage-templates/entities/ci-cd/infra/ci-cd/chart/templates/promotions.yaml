@@ -138,7 +138,7 @@ spec:
     - name: baseURL
       value: "https://{{ .Values.hostName }}:8443"
     - name: subPath
-      value: "/{{ .Values.serviceName }}/stage"
+      value: "/{{ .Values.serviceName }}/prod"
     - name: field
       value: env
     - name: value
